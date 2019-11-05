@@ -1,0 +1,39 @@
+Vagrant.configure("2") do |config|
+  config.vm.box = "rhel-base"
+  config.vm.provider "virtualbox" do |v|
+    v.memory = 2048
+  end
+  config.vm.box_url = "BASE IMAGE HERE"
+  config.vm.network "forwarded_port", guest: 80, host: 8080, auto_correct: true
+  
+  config.vm.define "base" do |base|
+  end
+  
+  config.vm.provision "shell", inline: "sudo apt-get install -y apache2"
+  config.vm.provision "shell", inline: "sudo apt-get install -y php"
+  config.vm.provision "shell", inline: "sudo apt-get install -y mysql-server"
+  config.vm.provision "shell", inline: "sudo apt-get install -y git"
+  config.vm.provision "shell", inline: "sudo service iptables stop"
+  config.vm.provision "shell", inline: "sudo service ip6tables stop"
+  
+  config.vm.provision "shell", inline: <<-EOF
+    printf "Cloning OJS repo to /var/www/html...."
+    cd /var/www/html
+    git clone --recursive -b master https://github.com/pkp/ojs.git
+    printf "done\n"
+  EOF
+  
+  config.vm.provision "shell", inline: <<-EOF
+    sudo service apache2 start
+    sudo service mysqld start
+    chkconfig iptables off
+    chkconfig ip6tables off
+    chkconfig apache2 on
+    chkconfig mysqld on
+  EOF
+
+  config.vm.provision "shell", inline: <<-EOF
+    sudo mysql -u root <<< "create database ojs;"
+    sudo mysql -u root <<< "grant all on ojs.* to 'ojsuser'@'localhost' identified by 'ojspass';"
+  EOF
+end
